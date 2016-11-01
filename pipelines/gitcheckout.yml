@@ -1,0 +1,26 @@
+resources:
+- name: source-code
+  type: git
+  source:
+    uri: git@orahub.oraclecorp.com:danny_j_smith/build-testing.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+- name: readmes
+  type: s3
+  source:
+    bucket: djs-concourse
+    region_name: eu-west-1
+    versioned_file: README.md
+    access_key_id: {{s3-access-key-id}}
+    secret_access_key: {{s3-secret-access-key}}  
+jobs:
+- name: show-file
+  plan:
+  - get: source-code
+  - task: build-me
+    file: source-code/build.yml
+  - put: readmes
+    params:
+      file: source-code/README.md
+      acl: public-read
