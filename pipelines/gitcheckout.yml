@@ -2,7 +2,7 @@ resources:
 - name: source-code
   type: git
   source:
-    uri: git@orahub.oraclecorp.com:danny_j_smith/build-testing.git
+    uri: git@github.com:dansmithy/boot-web.git
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
