@@ -1,6 +1,6 @@
 # Concourse CI
 
-## Running Concourse
+## Starting Concourse
 
 I am running it using docker compose as described [in their documentation][1]. See the script `run-concourse.sh`.
 
@@ -12,34 +12,20 @@ For some reason cannot download fly binary from the UI as you should be able to.
 
 Note the alternative to Docker is to run with Vagrant. I had some success with this initially, but now doesn't work. Vagrantfile is still in this repo to try again if required.
 
-## Concourse API
-
-To view env params and see resource types of locally running concourse, see
-
-http://[local-ip]:8080/api/v1/workers
-
-## Fly commands
-
-```
-./fly -t main intercept -j gitcheckout/show-file -s build-me
-```
-
 # My Concourse Examples
-
-## Running examples
 
 This example relies upon another repo - the boot-web repository.
 
 ### One-time configuration
 
 1. Copy the `credentials.yml.template` file to `credentials.yml` and change the placeholders to the necessary values.
+1. Build the boot-build image (in the boot-web project)
 
 ### Run the example!
 
-1. Ensure Docker for Mac has proxy / no proxy set to current IP
+1. Ensure Docker for Mac has proxy settings and no proxy set to current IP
 1. Start Concourse (`run-concourse.sh`). Note this includes a Docker registry on port 5000.
-1. Build and tag the boot-build image ready for pushing to local Docker registry
-1. Publish referenced docker image to local Docker registry (publish-image.sh)
+1. Tag and publish the boot-build image to the local Docker registry (`publish-image.sh`)
 1. Run `login.sh`
 1. Run `upload-pipelines.sh`
 1. Start pipeline in Concourse UI (using the left-hand nav and the play button)
@@ -56,7 +42,19 @@ This example relies upon another repo - the boot-web repository.
 1. Edit the YAML
 1. Run `upload-pipelines.sh`
 
+# Useful Concourse info
 
+## Concourse API
+
+To view env params and see resource types of locally running concourse, see
+
+http://[local-ip]:8080/api/v1/workers
+
+## Fly commands
+
+```
+./fly -t main intercept -j gitcheckout/show-file -s build-me
+```
 
 
 
