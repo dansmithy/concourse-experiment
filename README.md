@@ -23,7 +23,7 @@ This example relies upon another repo - the boot-web repository.
 
 ### Run the example!
 
-1. Ensure Docker for Mac has proxy settings and no proxy set to current IP
+1. Ensure Docker for Mac has proxy settings and no proxy set to current IP. Also ensure it has `{IP}:5000` included in the list of insecure registries.
 1. Start Concourse (`run-concourse.sh`). Note this includes a Docker registry on port 5000.
 1. Tag and publish the boot-build image to the local Docker registry (`publish-image.sh`)
 1. Run `login.sh`
