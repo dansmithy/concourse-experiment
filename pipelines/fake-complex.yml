@@ -1,0 +1,33 @@
+resources:
+- name: common-scripts
+  type: git
+  source:
+    uri: git@github.com:dansmithy/concourse-experiment.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+- name: foo-source
+  type: git
+  source:
+    uri: git@gist.github.com:abeca9aac16c3d705ff7539d13a12b47.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+jobs:
+- name: foo-build
+  plan:
+  - get: foo-source
+  - get: common-scripts
+  - task: build-foo
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: foo-source
+      - name: common-scripts
+      run:
+        path: ls
+        args: ['-alR']
+
