@@ -13,6 +13,15 @@ resources:
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
+- name: foo-binary
+  type: s3
+  source:
+    bucket: djs-concourse
+    region_name: eu-west-1
+    versioned_file: foo-build.txt
+    access_key_id: {{s3-access-key-id}}
+    secret_access_key: {{s3-secret-access-key}}  
+
 jobs:
 - name: foo-build
   plan:
@@ -27,7 +36,11 @@ jobs:
       inputs:
       - name: foo-source
       - name: common-scripts
+      outputs:
+      - name: foo-output
       run:
-        path: ls
-        args: ['-alR']
-
+        path: common-scripts/scripts/build-foo.sh
+  - put: foo-binary
+    params:
+      file: foo-output/foo-source
+      acl: public-read
