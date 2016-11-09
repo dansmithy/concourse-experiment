@@ -1,4 +1,4 @@
 #!/bin/sh
 
-ls ../../foo-source
-cat ../../foo-source/foo-source
+ls foo-source
+cat foo-source/foo-source
