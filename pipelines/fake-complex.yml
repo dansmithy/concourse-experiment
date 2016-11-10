@@ -36,6 +36,14 @@ resources:
     versioned_file: bar-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
+- name: foobar-binary
+  type: s3
+  source:
+    bucket: djs-concourse
+    region_name: eu-west-1
+    versioned_file: foobar-build.txt
+    access_key_id: {{s3-access-key-id}}
+    secret_access_key: {{s3-secret-access-key}}
 
 
 jobs:
@@ -104,3 +112,39 @@ jobs:
       - name: foobar-output
       run:
         path: common-scripts/scripts/build-foobar.sh
+  - put: foobar-binary
+    params:
+      file: foobar-output/foobar-build.txt
+      acl: public-read
+- name: foobar-deploy
+  plan:
+  - get: foobar-binary
+    passed: [foobar-build]
+    trigger: true
+  - task: deploy-foobar
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: foobar-binary
+      run:
+        path: echo
+        args: ['Doing deploy of foobar']
+- name: foobar-test
+  plan:
+  - get: foobar-binary
+    passed: [foobar-deploy]
+    trigger: true
+  - task: test-foobar
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: foobar-binary
+      run:
+        path: echo
+        args: ['Doing test of foobar']
