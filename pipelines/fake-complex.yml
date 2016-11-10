@@ -20,7 +20,23 @@ resources:
     region_name: eu-west-1
     versioned_file: foo-build.txt
     access_key_id: {{s3-access-key-id}}
-    secret_access_key: {{s3-secret-access-key}}  
+    secret_access_key: {{s3-secret-access-key}}
+- name: bar-source
+  type: git
+  source:
+    uri: git@gist.github.com:85007ebbccfd2a43d3af2f8a738aaf70.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+- name: bar-binary
+  type: s3
+  source:
+    bucket: djs-concourse
+    region_name: eu-west-1
+    versioned_file: bar-build.txt
+    access_key_id: {{s3-access-key-id}}
+    secret_access_key: {{s3-secret-access-key}}
+
 
 jobs:
 - name: foo-build
@@ -44,3 +60,47 @@ jobs:
     params:
       file: foo-output/foo-source
       acl: public-read
+- name: bar-build
+  plan:
+  - get: bar-source
+  - get: common-scripts
+  - task: build-bar
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: bar-source
+      - name: common-scripts
+      outputs:
+      - name: bar-output
+      run:
+        path: common-scripts/scripts/build-bar.sh
+  - put: bar-binary
+    params:
+      file: bar-output/bar-source
+      acl: public-read
+- name: foobar-build
+  plan:
+  - get: foo-binary
+    passed: [foo-build]
+    trigger: true
+  - get: bar-binary
+    passed: [bar-build]
+    trigger: true
+  - get: common-scripts
+  - task: build-foobar
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: foo-binary
+      - name: bar-binary
+      - name: common-scripts
+      outputs:
+      - name: foobar-output
+      run:
+        path: common-scripts/scripts/build-foobar.sh
