@@ -6,21 +6,21 @@ resources:
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
-- name: foo-source
+- name: js-source
   type: git
   source:
     uri: git@gist.github.com:abeca9aac16c3d705ff7539d13a12b47.git
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
-- name: bar-source
+- name: documentation-source
   type: git
   source:
     uri: git@gist.github.com:85007ebbccfd2a43d3af2f8a738aaf70.git
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
-- name: qux-source
+- name: api-source
   type: git
   source:
     uri: git@gist.github.com:9a64e847eacd4e1eb874abefe5d97d4e.git
@@ -34,151 +34,123 @@ resources:
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
-- name: foo-binary
+- name: js-binary
   type: s3
   source:
     bucket: djs-concourse
     region_name: eu-west-1
-    versioned_file: foo-build.txt
+    versioned_file: js-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
-- name: bar-binary
+- name: documentation-binary
   type: s3
   source:
     bucket: djs-concourse
     region_name: eu-west-1
-    versioned_file: bar-build.txt
+    versioned_file: documentation-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
-- name: foobar-binary
+- name: web-binary
   type: s3
   source:
     bucket: djs-concourse
     region_name: eu-west-1
-    versioned_file: foobar-build.txt
+    versioned_file: web-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
-- name: qux-binary
+- name: api-binary
   type: s3
   source:
     bucket: djs-concourse
     region_name: eu-west-1
-    versioned_file: qux-build.txt
+    versioned_file: api-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
 
 
 jobs:
-- name: foo-build
+- name: js-build
   plan:
-  - get: foo-source
+  - get: js-source
   - get: common-scripts
-  - task: build-foo
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
       inputs:
-      - name: foo-source
+      - name: js-source
+        path: input
       - name: common-scripts
       outputs:
-      - name: foo-output
+      - name: output
       run:
-        path: common-scripts/scripts/build-foo.sh
-  - put: foo-binary
+        path: common-scripts/scripts/build-source.sh
+        args: ['foo-source']
+  - put: js-binary
     params:
-      file: foo-output/foo-source
+      file: output/binary
       acl: public-read
-- name: bar-build
+- name: documentation-build
   plan:
-  - get: bar-source
+  - get: documentation-source
   - get: common-scripts
-  - task: build-bar
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
       inputs:
-      - name: bar-source
+      - name: documentation-source
+        path: input
       - name: common-scripts
       outputs:
-      - name: bar-output
+      - name: documentation-output
       run:
-        path: common-scripts/scripts/build-bar.sh
-  - put: bar-binary
+        path: common-scripts/scripts/build-source.sh
+        args: ['bar-source']
+  - put: documentation-binary
     params:
-      file: bar-output/bar-source
+      file: output/binary
       acl: public-read
-- name: foobar-build
+- name: web-build
   plan:
-  - get: foo-binary
-    passed: [foo-build]
+  - get: js-binary
+    passed: [js-build]
     trigger: true
-  - get: bar-binary
-    passed: [bar-build]
+  - get: documentation-binary
+    passed: [documentation-build]
     trigger: true
   - get: common-scripts
-  - task: build-foobar
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
       inputs:
-      - name: foo-binary
-      - name: bar-binary
+      - name: js-binary
+        path: input1
+      - name: documentation-binary
+        path: input2
       - name: common-scripts
       outputs:
-      - name: foobar-output
+      - name: output
       run:
-        path: common-scripts/scripts/build-foobar.sh
-  - put: foobar-binary
+        path: common-scripts/scripts/build-combine.sh
+        args: ['js-build.txt', 'documentation-build.txt']
+  - put: web-binary
     params:
-      file: foobar-output/foobar-build.txt
+      file: output/binary
       acl: public-read
-- name: foobar-dev-deploy
+- name: web-dev-deploy
   plan:
-  - get: foobar-binary
-    passed: [foobar-build]
+  - get: web-binary
+    passed: [web-build]
     trigger: true
-  - task: deploy-foobar
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source: {repository: busybox}
-      inputs:
-      - name: foobar-binary
-      run:
-        path: echo
-        args: ['Deploying foobar to dev']
-- name: foobar-test
-  plan:
-  - get: foobar-binary
-    passed: [foobar-dev-deploy]
-    trigger: true
-  - get: qux-binary
-    passed: [qux-dev-deploy]
-    trigger: true
-  - task: test-foobar
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source: {repository: busybox}
-      inputs:
-      - name: foobar-binary
-      run:
-        path: echo
-        args: ['Doing test of foobar']
-- name: foobar-prod-deploy
-  plan:
-  - get: foobar-binary
-    passed: [foobar-test]
-    trigger: true
-  - task: deploy-foobar
+  - task: job_work
     config:
       platform: linux
       image_resource:
@@ -186,69 +158,96 @@ jobs:
         source: {repository: busybox}
       run:
         path: echo
-        args: ['Deploying foobar to prod']
-- name: qux-build
+        args: ['Deploying web to dev']
+- name: web-test
   plan:
-  - get: qux-source
+  - get: web-binary
+    passed: [web-dev-deploy]
+    trigger: true
+  - get: api-binary
+    passed: [api-dev-deploy]
+    trigger: true
+  - task: job_work
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      run:
+        path: echo
+        args: ['Doing test of web']
+- name: web-prod-deploy
+  plan:
+  - get: web-binary
+    passed: [web-test]
+    trigger: true
+  - task: job_work
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      run:
+        path: echo
+        args: ['Deploying web to prod']
+- name: api-build
+  plan:
+  - get: api-source
   - get: common-scripts
-  - task: build-qux
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
       inputs:
-      - name: qux-source
+      - name: api-source
+        path: input
       - name: common-scripts
       outputs:
-      - name: qux-output
+      - name: output
       run:
-        path: common-scripts/scripts/build-qux.sh
-  - put: qux-binary
+        path: common-scripts/scripts/build-source.sh
+  - put: api-binary
     params:
-      file: qux-output/qux-source
+      file: output/binary
       acl: public-read
-- name: qux-dev-deploy
+- name: api-dev-deploy
   plan:
-  - get: qux-binary
-    passed: [qux-build]
+  - get: api-binary
+    passed: [api-build]
     trigger: true
   - get: config-dev-source
     trigger: true
-  - task: deploy-qux
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
-      inputs:
-      - name: qux-binary
-      - name: config-dev-source
       run:
         path: echo
         args: ['Deploying to dev']
-- name: qux-test
+- name: api-test
   plan:
-  - get: qux-binary
-    passed: [qux-dev-deploy]
+  - get: api-binary
+    passed: [api-dev-deploy]
     trigger: true
-  - task: test-qux
+  - task: job_work
     config:
       platform: linux
       image_resource:
         type: docker-image
         source: {repository: busybox}
-      inputs:
-      - name: qux-binary
       run:
         path: sleep
         args: [20]
-- name: qux-prod-deploy
+- name: api-prod-deploy
   plan:
-  - get: qux-binary
-    passed: [qux-test, foobar-test]
+  - get: api-binary
+    passed: [api-test, web-test]
     trigger: true
-  - task: deploy-qux
+  - task: job_work
     config:
       platform: linux
       image_resource:
@@ -256,4 +255,4 @@ jobs:
         source: {repository: busybox}
       run:
         path: echo
-        args: ['Deploying qux']
+        args: ['Deploying api']
