@@ -13,6 +13,27 @@ resources:
     branch: master
     disable_ci_skip: true
     private_key: {{ssh_private_key}}
+- name: bar-source
+  type: git
+  source:
+    uri: git@gist.github.com:85007ebbccfd2a43d3af2f8a738aaf70.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+- name: qux-source
+  type: git
+  source:
+    uri: git@gist.github.com:9a64e847eacd4e1eb874abefe5d97d4e.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
+- name: config-dev-source
+  type: git
+  source:
+    uri: git@gist.github.com:20c8f0e138972b7df5c91f7fbd39e768.git
+    branch: master
+    disable_ci_skip: true
+    private_key: {{ssh_private_key}}
 - name: foo-binary
   type: s3
   source:
@@ -21,13 +42,6 @@ resources:
     versioned_file: foo-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
-- name: bar-source
-  type: git
-  source:
-    uri: git@gist.github.com:85007ebbccfd2a43d3af2f8a738aaf70.git
-    branch: master
-    disable_ci_skip: true
-    private_key: {{ssh_private_key}}
 - name: bar-binary
   type: s3
   source:
@@ -42,6 +56,14 @@ resources:
     bucket: djs-concourse
     region_name: eu-west-1
     versioned_file: foobar-build.txt
+    access_key_id: {{s3-access-key-id}}
+    secret_access_key: {{s3-secret-access-key}}
+- name: qux-binary
+  type: s3
+  source:
+    bucket: djs-concourse
+    region_name: eu-west-1
+    versioned_file: qux-build.txt
     access_key_id: {{s3-access-key-id}}
     secret_access_key: {{s3-secret-access-key}}
 
@@ -116,7 +138,7 @@ jobs:
     params:
       file: foobar-output/foobar-build.txt
       acl: public-read
-- name: foobar-deploy
+- name: foobar-dev-deploy
   plan:
   - get: foobar-binary
     passed: [foobar-build]
@@ -131,11 +153,14 @@ jobs:
       - name: foobar-binary
       run:
         path: echo
-        args: ['Doing deploy of foobar']
+        args: ['Deploying foobar to dev']
 - name: foobar-test
   plan:
   - get: foobar-binary
-    passed: [foobar-deploy]
+    passed: [foobar-dev-deploy]
+    trigger: true
+  - get: qux-binary
+    passed: [qux-dev-deploy]
     trigger: true
   - task: test-foobar
     config:
@@ -148,3 +173,87 @@ jobs:
       run:
         path: echo
         args: ['Doing test of foobar']
+- name: foobar-prod-deploy
+  plan:
+  - get: foobar-binary
+    passed: [foobar-test]
+    trigger: true
+  - task: deploy-foobar
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      run:
+        path: echo
+        args: ['Deploying foobar to prod']
+- name: qux-build
+  plan:
+  - get: qux-source
+  - get: common-scripts
+  - task: build-qux
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: qux-source
+      - name: common-scripts
+      outputs:
+      - name: qux-output
+      run:
+        path: common-scripts/scripts/build-qux.sh
+  - put: qux-binary
+    params:
+      file: qux-output/qux-source
+      acl: public-read
+- name: qux-dev-deploy
+  plan:
+  - get: qux-binary
+    passed: [qux-build]
+    trigger: true
+  - get: config-dev-source
+    trigger: true
+  - task: deploy-qux
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: qux-binary
+      - name: config-dev-source
+      run:
+        path: echo
+        args: ['Deploying to dev']
+- name: qux-test
+  plan:
+  - get: qux-binary
+    passed: [qux-dev-deploy]
+    trigger: true
+  - task: test-qux
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      inputs:
+      - name: qux-binary
+      run:
+        path: sleep
+        args: [20]
+- name: qux-prod-deploy
+  plan:
+  - get: qux-binary
+    passed: [qux-test, foobar-test]
+    trigger: true
+  - task: deploy-qux
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: busybox}
+      run:
+        path: echo
+        args: ['Deploying qux']
